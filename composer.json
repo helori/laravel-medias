@@ -1,0 +1,32 @@
+{
+    "name": "helori/laravel-medias",
+    "description": "Medias library for Laravel",
+    "keywords": ["laravel", "medias"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Helori Lanos",
+            "email": "helori@algoart.fr",
+            "homepage": "https://algoart.fr"
+        }
+    ],
+    "repositories": [
+        {
+            "type": "git",
+            "url": "https://github.com/helori/laravel-medias.git"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Helori\\LaravelMedias\\": "src/"
+        }
+    },
+    "require": {
+        "php": ">=5.5.9",
+        "doctrine/dbal": "^2.5",
+        "intervention/image": "^2.3"
+    },
+    "require-dev": {
+        
+    }
+}
