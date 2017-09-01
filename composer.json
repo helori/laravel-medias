@@ -28,5 +28,12 @@
     },
     "require-dev": {
         
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Helori\\LaravelMedias\\MediasServiceProvider"
+            ]
+        }
     }
 }
