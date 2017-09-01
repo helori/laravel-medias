@@ -1,41 +1,53 @@
 <?php
 
-namespace Helori\LaravelCms\Controllers\Admin;
+namespace Helori\Laravelmedias\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Helori\LaravelCms\Controllers\Controller;
-//use Illuminate\Routing\Controller;
-use Helori\LaravelCms\Models\Media;
+use Illuminate\Routing\Controller;
+use Helori\LaravelMedias\Models\Media;
 use Image;
 
 
 class MediasController extends Controller
 {
-    public function media(Request $request)
+    public function read(Request $request, $id = null)
     {
-        $this->init();
-        return view('laravel-cms::admin.media', $this->data);
-    }
-    
-    public function read(Request $request)
-    {
-        if($request->has('limit') && $request->input('limit') == 'all'){
-            return Media::orderBy('created_at', 'desc')->get();
+        if(!is_null($id)){
+
+            return Media::findOrFail($id);
+
         }else{
-            return Media::orderBy('created_at', 'desc')->paginate(5);
+
+            $search = $request->input('text', '');
+            $order = $request->input('order', 'created_at');
+            $reverse = ($request->input('reverse') == 'true');
+
+            $query = Media::orderBy($order, $reverse ? 'desc' : 'asc');
+
+            if($search){
+                $query->where(function($q) use($search) {
+                    $q->where('filename', 'like', '%'.$search.'%')
+                        ->orWhere('title', 'like', '%'.$search.'%')
+                        ->orWhere('mime', 'like', '%'.$search.'%')
+                        ->orWhere('type', 'like', '%'.$search.'%')
+                        ->orWhere('extension', 'like', '%'.$search.'%');
+                });
+            }
+
+            return $query->paginate(12);
         }
     }
 
     public function delete(Request $request, $id)
     {
         $media = Media::findOrFail($id);
+
         $path = public_path().'/'.$media->filepath;
         if(is_file($path))
             unlink($path);
-        $id = $media->id;
+        
         $media->delete();
-        return $id;
     }
 
     public function create(Request $request)

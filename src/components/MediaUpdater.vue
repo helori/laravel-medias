@@ -390,7 +390,7 @@
                                     <div v-if="item.type === 'image'">
 
                                         <div id="crop-wrapper" class="preview">
-                                            <div class="image" :style="'background-image:url(' + assetsBaseUrl + item.filepath + '?' + item.decache + ')'"></div>
+                                            <div class="image" :style="'background-image:url(' + item.filepath + '?' + item.decache + ')'"></div>
                                             <div class="display" :style="'left:' + size_display.x + 'px;top:' + size_display.y + 'px;width:' + size_display.w + 'px;height:' + size_display.h + 'px;'">
                                                 <div class="cropper" 
                                                     :style="'left:' + size_cropper.x + 'px;top:' + size_cropper.y + 'px;width:' + size_cropper.w + 'px;height:' + size_cropper.h + 'px;'">
@@ -419,14 +419,14 @@
 
                                     <div v-else-if="item.type === 'pdf'">
                                         <div class="preview">
-                                            <iframe :src="assetsBaseUrl + item.filepath + '?' + item.decache"></iframe>
+                                            <iframe :src="item.filepath + '?' + item.decache"></iframe>
                                         </div>
                                     </div>
 
                                     <div v-else-if="item.type === 'video'">
                                         <div class="preview">
                                             <video controls>
-                                                <source :src="assetsBaseUrl + item.filepath + '?' + item.decache" :type="item.mime" />
+                                                <source :src="item.filepath + '?' + item.decache" :type="item.mime" />
                                             </video>
                                         </div>
                                     </div>
@@ -503,19 +503,6 @@
             };
         },
 
-        props: {
-            'queries-base-url': {
-                type: String,
-                required: true,
-                default: ''
-            },
-            'assets-base-url': { 
-                type: String,
-                required: true,
-                default: ''
-            }
-        },
-
         mounted()
         {
             var self = this;
@@ -589,7 +576,7 @@
                     console.log('cropper', self.size_cropper.x, self.size_cropper.y, self.size_cropper.w, self.size_cropper.h);
                     console.log('final', self.size_final.x, self.size_final.y, self.size_final.w, self.size_final.h);
                 };
-                image.src = this.assetsBaseUrl + this.item.filepath + '?' + this.item.decache;
+                image.src = this.item.filepath + '?' + this.item.decache;
             },
 
             setState: function(state){
@@ -611,7 +598,7 @@
                     quality: this.compression.quality
                 };
 
-                axios.put(this.queriesBaseUrl + 'media/' + this.item.id, data).then(response => {
+                axios.put('/api/media/' + this.item.id, data).then(response => {
                     //console.log('update success', response);
                     this.setState('done');
                     this.item = response.data;

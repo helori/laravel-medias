@@ -29,7 +29,7 @@ class MediasServiceProvider extends ServiceProvider
         ], 'laravel-medias-views');
 
         $this->publishes([
-            //__DIR__.'/components' => base_path('resources/assets/js/components/laravel-cms'),
+            __DIR__.'/components' => base_path('resources/assets/js/components/laravel-medias'),
             __DIR__.'/assets/medias.js' => base_path('resources/assets/js/medias.js'),
             __DIR__.'/assets/medias.scss' => base_path('resources/assets/sass/medias.scss'),
         ], 'laravel-medias-assets');

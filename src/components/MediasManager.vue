@@ -1,79 +1,47 @@
 <style scoped>
-    .medias-manager input.file-input{
-        position: absolute;
-        left: -9999px;
-    }
-    .medias-manager label p{
-        margin: 0;
-    }
-    .medias-manager input.file-input + label {
-        padding: 30px;
-        cursor: pointer;
-        background: rgba(0, 0, 0, 0.1);
-        color: white;
-        border: 3px dashed white;
-        text-align: center;
-        font-style: italic;
-        font-weight: 400;
-        background: #f56857;
-    }
-    .medias-manager input.file-input + label:hover,
-    .medias-manager input.file-input + label.disabled {
-        background: #ff9070;
-    }
-
-    .cell-preview{
-        min-width: 150px;
-    }
-
-    .medias-manager .preview{
-        position: relative;
-        height: 0;
-        padding-bottom: 60%;
-        overflow: hidden;
-        background: repeating-linear-gradient(
-            -45deg,
-            #666666,
-            #666666 10px,
-            #444444 10px,
-            #444444 20px
-        );
-    }
-    .medias-manager .preview .image{
-        z-index: 1;
-        position: absolute;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        background-position: center center;
-        background-repeat: no-repeat;
-        background-size: contain;
-    }
-    .medias-manager .preview video, 
-    .medias-manager .preview iframe{
-        z-index: 1;
-        position: absolute;
-        width: 100%; height: 100%;
-        top: 0; bottom: 0;
-        left: 0; right: 0;
-        background: black;
-        border: 0;
-        box-shadow: none;
-    }
-    .medias-manager .preview .text-wrapper{
-        display: table;
-        z-index: 2;
-        position: absolute;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        background: #666;
-    }
-    .medias-manager .preview .text-wrapper .text{
-        display: table-cell;
-        vertical-align: middle;
-        text-align: center;
-        color: white;
-        font-size: 12px;
-    }
+h1{
+    font-size: 30px;
+    font-weight: 300;
+    margin: 0 0 5px 0;
+}
+.displayed{
+    font-size: 16px;
+    font-weight: 300;
+    font-style: italic;
+    margin: 0 0 15px 0;   
+}
+.no-results{
+    padding: 40px 0;
+}
+.search-bar, .progress-wrapper, .alert{
+    margin: 15px 0;
+}
+.progress{
+    margin: 0;
+}
+input.file-input{
+    position: absolute;
+    left: -9999px;
+}
+input.file-input + label {
+    margin: 0;
+    padding: 30px;
+    cursor: pointer;
+    background: rgba(0, 0, 0, 0.1);
+    border: 1px dashed rgba(0, 0, 0, 0.3);
+    text-align: center;
+    font-style: italic;
+    font-weight: 400;
+    background: #E0E0E0;
+}
+input.file-input + label:hover,
+input.file-input + label.disabled {
+    background: #ff9070;
+    color: white;
+}
+.cell-preview{
+    min-width: 150px;
+}
 </style>
 
 <template>
@@ -81,14 +49,235 @@
     <div class="medias-manager">
 
         <div class="row">
+            <div class="col-md-3">
+
+                <h1>Medias</h1>
+                <div class="displayed">
+                    <span v-if="loaded && pagination.total > 0">
+                        Showing {{ (pagination.current_page - 1) * pagination.per_page + 1 }}
+                        to {{ Math.min(pagination.current_page * pagination.per_page, pagination.total) }} / {{ pagination.total }}
+                    </span>
+                    <span v-else-if="loaded && pagination.total == 0">
+                        No media found
+                    </span>
+                    <span v-else>
+                        Loading...
+                    </span>
+                </div>
+
+                <input type="file" multiple
+                    accept="image/jpeg,image/png,application/pdf,video/mp4,video/m4v"
+                    :id="'file-input-' + id" 
+                    :disabled="uploadStatus == 'uploading'"
+                    class="file-input">
+                <label :for="'file-input-' + id" class="table filedrop" :class="{'disabled': uploadStatus == 'uploading'}">
+                    <div class="cell">
+                        Drag & drop / browse files...
+                    </div>
+                </label>
+
+                <div class="progress-wrapper" v-if="uploadStatus == 'uploading'">
+                    <div class="progress-cell">
+                        <div class="progress">
+                            <div class="progress-bar" role="progressbar" :style="'width:' + (100 * uploadProgress / uploadTotal) + '%'">
+                                <span class="sr-only">{{100 * uploadProgress / uploadTotal}}%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="button" class="btn btn-warning btn-block" @click="cancel()" v-if="uploadStatus == 'uploading'">
+                    <i class="fa fa-close"></i> Cancel
+                </button>
+
+                <div v-if="uploadError" class="alert alert-danger text-center">
+                    Erreur {{ uploadError.response.status }} : {{ uploadError.response.statusText }}
+                </div>
+
+                <div v-if="uploadStatus == 'done'" class="alert alert-success text-center">
+                    Files uploaded successfully
+                </div>
+
+                <div class="search-bar">
+                    <input-text
+                        v-model="search.text"
+                        name="search"
+                        placeholder="Search..."
+                        :autofocus="true">
+                    </input-text>
+                </div>
+                
+            </div>
+            <div class="col-md-9">
+
+                <panel>
+                    <div slot="body">
+
+                        <div class="text-right">
+                            <!--pagination :pagination="pagination" @change="loadPage"></pagination-->
+                        </div>
+
+                        <div v-if="pagination.total === 0" class="no-results text-center">
+                            No media found, but you should hit the "browse" button pretty soon!
+                        </div>
+
+                        <div class="table-responsive" v-show="pagination.total > 0">
+                            <table class="table table-condensed table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Preview</th>
+                                        <th>Details</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="(item, idx) in pagination.data">
+                                        <td class="cell-preview">
+                                            <div class="preview">
+                                                <div class="image"
+                                                    v-if="item.mime.indexOf('image') !== -1"
+                                                    :style="'background-image:url(' + item.filepath + '?' + item.decache + ')'">
+                                                </div>
+                                                <video controls v-else-if="item.mime.indexOf('video') !== -1">
+                                                    <source :src="assetsBaseUrl + item.filepath + '?' + item.decache" :type="item.mime" />
+                                                </video>
+                                                <div class="text-wrapper" v-else>
+                                                    <div class="text">
+                                                        <div>{{ item.mime }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>    
+                                            <div>
+                                                <span class="lab">Title :</span>
+                                                <span class="text-info">{{ item.title }}</span>
+                                            </div>
+                                            <div>
+                                                <span class="lab">File :</span>
+                                                <span class="text-info">{{ item.filename }}</span>
+                                            </div>
+                                            <div>
+                                                <span class="lab">Type :</span>
+                                                <span class="text-info">{{ item.mime }}</span>
+                                            </div>
+                                            <div>
+                                                <span class="lab">Size :</span>
+                                                <span class="text-info">
+                                                    <span v-if="item.size < 1000000">{{ item.size / 1000 }} ko</span>
+                                                    <span v-else>{{ item.size / 1000000 }} Mo</span>
+                                                </span>
+                                            </div>
+                                            <div v-if="item.mime.indexOf('image') !== -1">
+                                                <span class="lab">Dimensions :</span>
+                                                <span class="text-info">{{ item.width }} x {{ item.height }} px</span>
+                                            </div>
+                                        </td>
+
+                                        <td class="actions text-right">
+
+                                            <div class="btn-group">
+
+                                                <button type="button" @click="download(item)" class="btn btn-default">
+                                                    <i class="fa fa-download"></i>
+                                                </button>
+
+                                                <button type="button" @click="openUpdate(item)" class="btn btn-default">
+                                                    <i class="fa fa-edit"></i>
+                                                </button>
+
+                                                <button type="button" @click="openDestroy(item)" class="btn btn-danger">
+                                                    <i class="fa fa-trash"></i>
+                                                </button>
+                                                
+                                            </div>
+                                            
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="text-right">
+                            <pagination :pagination="pagination" @change="loadPage"></pagination>
+                        </div>
+
+                    </div>
+                </panel>
+
+            </div>
+        </div>
+
+        <div class="modal fade destroy-dialog"tabindex="-1" role="dialog">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    
+                    <div class="modal-header">
+                        <button type="button " class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                        <h4 class="modal-title">Delete file</h4>
+                    </div>
+                    
+                    <div class="modal-body">
+                        Are you sure ?
+
+                        <div v-if="destroyError" class="alert alert-danger">
+                            {{ destroyError }}
+                        </div>
+
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal" v-if="destroyStatus == 'none'">
+                            <i class="fa fa-close"></i> Cancel
+                        </button>
+                        <button type="button" 
+                            class="btn btn-danger" 
+                            @click="destroy()"
+                            :disabled="destroyStatus === 'loading'">
+
+                            <span v-if="destroyStatus === null">
+                                Yes, delete !
+                            </span>
+                            <span v-if="destroyStatus === 'loading'">
+                                <i class="fa fa-spinner fa-spin"></i> Deleting file...
+                            </span>
+
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <media-updater 
+            ref="mediaUpdater"
+            @updated="read()">
+        </media-updater>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        <!--div class="row">
 
             <div class="col-sm-6">
                 <input type="file" multiple
                     accept="image/jpeg,image/png,application/pdf,video/mp4,video/m4v"
                     :id="'file-input-' + id" 
-                    :disabled="upload_state == 'uploading'"
+                    :disabled="uploadStatus == 'uploading'"
                     class="file-input">
-                <label :for="'file-input-' + id" class="table filedrop" :class="{'disabled': upload_state == 'uploading'}">
+                <label :for="'file-input-' + id" class="table filedrop" :class="{'disabled': uploadStatus == 'uploading'}">
                     <div class="cell">
                         <strong>Charger de nouveaux fichiers</strong>
                         <p>Vous pouvez glisser-déposer vos fichiers dans cette zone <br>(ou cliquer ici pour en sélectionner)</p>
@@ -98,25 +287,25 @@
 
             <div class="col-sm-6">
 
-                <div class="progress-wrapper" v-if="upload_state == 'uploading'">
+                <div class="progress-wrapper" v-if="uploadStatus == 'uploading'">
                     <div class="progress-cell">
                         <div class="progress">
-                            <div class="progress-bar" role="progressbar" :style="'width:' + (100 * upload_progress / upload_total) + '%'">
-                                <span class="sr-only">{{100 * upload_progress / upload_total}}%</span>
+                            <div class="progress-bar" role="progressbar" :style="'width:' + (100 * uploadProgress / uploadTotal) + '%'">
+                                <span class="sr-only">{{100 * uploadProgress / uploadTotal}}%</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <button type="button" class="btn btn-warning btn-block" @click="cancel()" v-if="upload_state == 'uploading'">
+                <button type="button" class="btn btn-warning btn-block" @click="cancel()" v-if="uploadStatus == 'uploading'">
                     <i class="fa fa-close"></i> Annuler le chargement
                 </button>
 
-                <div v-if="upload_error" class="alert alert-danger">
-                    Erreur {{ upload_error.response.status }} : {{ upload_error.response.statusText }}
+                <div v-if="uploadError" class="alert alert-danger">
+                    Erreur {{ uploadError.response.status }} : {{ uploadError.response.statusText }}
                 </div>
 
-                <div v-if="upload_state == 'done'" class="alert alert-success">
+                <div v-if="uploadStatus == 'done'" class="alert alert-success">
                     <strong>Vos fichiers sont chargés !</strong>
                 </div>
 
@@ -278,103 +467,74 @@
                     </li>
                 </ul>
             </nav>
-        </div>
-
-        <media-updater 
-            ref="mediaUpdater"
-            :queries-base-url="queriesBaseUrl"
-            :assets-base-url="assetsBaseUrl"
-            @updated="refresh()">
-        </media-updater>
-
-        <!-- Delete Dialog -->
-        <div class="modal fade delete-dialog"tabindex="-1" role="dialog">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    
-                    <div class="modal-header">
-                        <button type="button " class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-                        <h4 class="modal-title">Supprimer le fichier</h4>
-                    </div>
-                    
-                    <div class="modal-body">
-                        Les fichiers sélectionnés sont sur le point d'être supprimés.
-                        Cette opération est irréversible. Êtes-vous bien certain(e) ?
-
-                        <div v-if="delete_error" class="alert alert-danger">
-                            {{ delete_error }}
-                        </div>
-
-                    </div>
-
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-default" data-dismiss="modal" v-if="delete_state == 'none'">
-                            <i class="fa fa-close"></i> Annuler
-                        </button>
-                        <button type="button" 
-                            class="btn btn-danger" 
-                            @click="deleteMedias()"
-                            :disabled="delete_state == 'pending'">
-
-                            <span v-if="delete_state == 'none'">
-                                Oui, supprimer !
-                            </span>
-                            <span v-if="delete_state == 'pending'">
-                                <i class="fa fa-spinner fa-spin"></i> Suppression en cours...
-                            </span>
-
-                        </button>
-                    </div>
-
-                </div>
-            </div>
-        </div>
+        </div-->
 
     </div>
 </template>
 
 <script>
+
+    import Pagination from 'vue-crud/src/widgets/Pagination.vue'
+    import MediaUpdater from './MediaUpdater.vue';
+    //const MediaUpdater = () => import('./MediaUpdater.vue');
+
     export default {
+
+        components:{
+            mediaUpdater: MediaUpdater
+        },
+
         data(){
             return{
                 id: Math.floor(Math.random()*(9999-1000+1)+1000),
                 files: null,
+                search: {
+                    text: '',
+                },
                 
-                items: [],
                 pagination: {},
                 page: 1,
 
                 selectAll: false,
                 selected: [],
 
-                upload_source: null,
-                upload_state: 'none',
-                upload_progress: 0,
-                upload_total: 0,
-                upload_error: null,
+                loaded: false,
+                //readStatus: 'none',
 
-                deleteDialog: null,
-                delete_state: 'none',
-                delete_error: null
+                uploadSource: null,
+                uploadStatus: 'none',
+                uploadProgress: 0,
+                uploadTotal: 0,
+                uploadError: null,
+
+                destroyDialog: null,
+                destroyStatus: 'none',
+                destroyError: null
             };
         },
 
-        props: {
-            queriesBaseUrl: {
-                type: String,
-                required: true,
-                default: ''
+        watch: {
+            search: {
+                handler(){
+                    this.page = 1;
+                    this.read();
+                },
+                deep: true
             },
-            assetsBaseUrl: { 
-                type: String,
-                required: true,
-                default: ''
-            }
         },
 
         mounted() {
+
             var self = this;
-            this.deleteDialog = $(this.$el).find('.delete-dialog');
+
+            // -------------------------------------------------------
+            //  Init dialogs
+            // -------------------------------------------------------
+            this.destroyDialog = $(this.$el).find('.destroy-dialog');
+
+            this.destroyDialog.on('shown.bs.modal', function (e) {
+                $(this).find('input').first().focus();
+            });
             
             // -------------------------------------------------------
             //  Init browse button
@@ -382,7 +542,6 @@
             $(this.$el).on('change', '.file-input', function(e){
                 self.files = e.target.files;
                 self.upload();
-                //self.value = null;
             }).on('click', '.file-input', function(e){
                 this.value = null;
             });
@@ -391,12 +550,12 @@
             //  Init cancel token
             // -------------------------------------------------------
             var CancelToken = axios.CancelToken;
-            this.upload_source = CancelToken.source();
+            this.uploadSource = CancelToken.source();
 
             // -------------------------------------------------------
-            //  Refresh items
+            //  read items
             // -------------------------------------------------------
-            this.refresh();
+            this.read();
 
             // -------------------------------------------------------
             //  Prevent from openning file in browser on drop
@@ -423,37 +582,37 @@
 
         methods: {
 
+            read: function()
+            {
+                var url = '/api/media?page=' + this.page;
+                url += '&text=' + this.search.text;
+                this.loaded = false;
+
+                axios.get(url).then(response => {
+
+                    this.pagination = response.data;
+                    this.loaded = true;
+
+                }).catch(response => {
+
+                    this.loaded = true;
+
+                });
+            },
+
             loadPage(p){
                 this.page = p;
-                this.refresh();
-            },
-
-            openEditor(item){
-                this.$refs.mediaUpdater.openUpdateDialog(item);
-            },
-
-            refresh: function()
-            {
-                var url = this.queriesBaseUrl + 'media?page=' + this.page;
-                return axios.get(url).then(response => {
-                    this.items = response.data.data;
-                    this.pagination = response.data;
-                    this.items = _.forEach(this.items, function(item) {
-                        item.selected = false;
-                    });
-                }).catch(response => {
-                    
-                });
+                this.read();
             },
 
             upload: function()
             {
                 var self = this;
 
-                this.upload_state = 'uploading';
-                this.upload_progress = 0;
-                this.upload_total = 0;
-                this.upload_error = null;
+                this.uploadStatus = 'uploading';
+                this.uploadProgress = 0;
+                this.uploadTotal = 0;
+                this.uploadError = null;
 
                 var formData = new FormData();
                 for(var i=0; i<this.files.length; ++i){
@@ -464,104 +623,69 @@
                     onUploadProgress: function(e) {
                         console.log('upload progress', e);
                         if (e.lengthComputable) {
-                            self.upload_progress = e.loaded;
-                            self.upload_total = e.total;
+                            self.uploadProgress = e.loaded;
+                            self.uploadTotal = e.total;
                         }
                     },
-                    //cancelToken: this.upload_source
+                    //cancelToken: this.uploadSource
                 };
 
-                axios.post(this.queriesBaseUrl + 'media', formData, config).then(response => {
-                    //console.log('upload success', response);
-                    self.upload_state = 'done';
-                    self.upload_request = null;
-                    for(var i=0; i<response.data.length; ++i){
-                        this.items.push(response.data[i]);
-                    }
+                axios.post('/api/media', formData, config).then(response => {
+                    
+                    this.uploadStatus = 'done';
+                    this.read();
+                    
                 }).catch(response => {
-                    //console.log('upload error', response);
-                    self.upload_state = 'none';
-                    self.upload_request = null;
-                    self.upload_error = response;
+                    
+                    this.uploadStatus = 'none';
+                    this.uploadError = response.data;
                 });
             },
 
             cancel: function()
             {
-                if(this.upload_source){
+                if(this.uploadSource){
                     console.log('upload cancel');
-                    this.upload_source.cancel();
+                    this.uploadSource.cancel();
                 }else{
-                    console.log('Cannot cancel', this.upload_source);
+                    console.log('Cannot cancel', this.uploadSource);
                 }
             },
 
-            toggleAll(){
-                this.selected = [];
-                for(var i=0; i<this.items.length; ++i){
-                    this.items[i].selected = this.selectAll;
-                    if(this.selectAll){
-                        this.selected.push(this.items[i].id);
-                    }
-                }
+            openDestroy(item){
+                
+                this.destroyItem = item;
+                this.destroyError = null;
+                this.destroyStatus = null;
+                this.destroyDialog.modal('show');
             },
 
-            toggle(item){
-                var idx = this.selected.indexOf(item.id);
-                if(idx !== -1){
-                    this.selected.splice(idx, 1);
-                }else{
-                    this.selected.push(item.id);
-                }
-                //item.selected = !item.selected;
-            },
+            destroy() {
 
-            hasSelection(){
-                return (this.selected.length > 0);
-            },
+                this.destroyStatus = 'loading';
+                
+                axios.delete('/api/media/' + this.destroyItem.id).then(response => {
 
-            destroy: function(item)
-            {
-                this.items = _.forEach(this.items, function(item) {
-                    item.selected = false;
-                });
-                item.selected = true;
-                this.deleteDialog.modal('show');
-            },
+                    this.read();
+                    this.destroyStatus = 'success';
+                    this.destroyDialog.modal('hide');
 
-            deleteMedias: function()
-            {
-                var item = _.find(this.items, function(item) {
-                    return item.selected;
+                }).catch(response => {
+
+                    this.destroyStatus = 'error';
+                    this.destroyError = response.data;
+
                 });
 
-                if(item){
-
-                    var self = this;
-                    this.delete_state = 'pending';
-                    this.delete_error = null;
-
-                    axios.delete(this.queriesBaseUrl + 'media/' + item.id).then(function(r){
-                        self.items = _.filter(self.items, function(it) {
-                            return it.id !== item.id;
-                        });
-                        self.deleteMedias();
-                    }).catch(response => {
-                        self.delete_state = 'none';
-                        self.delete_error = response;
-                    });
-                }
-                else{
-                    this.selected = [];
-                    this.delete_state = 'none';
-                    this.deleteDialog.modal('hide');
-                    this.refresh();
-                }
             },
 
             download(item){
-                window.location.href = this.queriesBaseUrl + 'media/' + item.id + '/download';
-            }
+                window.location.href = '/api/media/' + item.id + '/download';
+            },
+
+            openUpdate(item){
+                this.$refs.mediaUpdater.openUpdateDialog(item);
+            },
         }
     }
 </script>

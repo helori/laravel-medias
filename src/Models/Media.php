@@ -1,6 +1,6 @@
 <?php
 
-namespace Helori\LaravelCms\Models;
+namespace Helori\LaravelMedias\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
